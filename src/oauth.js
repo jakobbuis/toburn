@@ -1,10 +1,9 @@
 var OAuth = (function(options){
 
-    // Supply default options
-    options = $.extend({
-        url: 'https://auth.debolk.nl/',
-    }, options);
-
+    /**
+     * Read the access token from the callback URL
+     * @return {string} the access token or null
+     */
     var getAuthorisationCodeFromURL = function() {
         regex = RegExp(/code=(.+?)(\&|$)/).exec(location.search);
 
@@ -16,63 +15,92 @@ var OAuth = (function(options){
         }
     };
 
+    /**
+     * Determine whether the user has refused access to the app
+     * @return {boolean} true if refused, false otherwise
+     */
     var userhasRefused = function() {
-        regex = RegExp(/error=access_denied/).exec(location.search);
+        regex = options.authorisation.access_denied.exec(location.search);
         return (regex !== null);
     }
 
+    /**
+     * Access token for OAuth
+     * @type {string}
+     */
     var access_token = null;
+
+    /**
+     * Authorisation code
+     * @type {string}
+     */
     var authorization_token = null;
 
+    /*
+     * Public API
+     */
     return {
-        authenticate: function(callback){
-            var authorization_token = getAuthorisationCodeFromURL();
-            if (authorization_token === null) {
-                // Have we refused authentication before?
-                if (userhasRefused()) {
-                    callback(false);
-                    return;
+
+        /**
+         * Authenticate the client to OAuth
+         * @return {Promise} resolved or rejected when done
+         */
+        authenticate: function(){
+            // Construct the promise
+            return new Promise(function(resolve, reject){
+
+                // Read the authorisation token
+                var authorization_token = getAuthorisationCodeFromURL();
+                if (authorization_token === null) {
+                    // Have we refused authentication before?
+                    if (userhasRefused()) {
+                        reject('user_refused');
+                        return;
+                    }
+                    else {
+                        // Not authenticated, must login
+                        var url = options.authorisation.url;
+                        var parameters = options.authorisation.parameters;
+                        var query_string = [];
+                        for(var p in parameters) {
+                            if (parameters.hasOwnProperty(p)) {
+                                query_string.push(encodeURIComponent(p) + "=" + encodeURIComponent(parameters[p]));
+                            }
+                        }
+                        window.location = url + '?' + query_string.join("&");
+                    }
                 }
                 else {
-                    // Not authenticated, must login
-                    window.location = options.url
-                                        + 'authenticate?response_type=code'
-                                        + '&client_id=' + options.client
-                                        + '&client_pass=' + options.secret
-                                        + '&redirect_uri=' +options.callback
-                                        + '&state=1';
-                }
-            }
-            else {
-                // Logged in, request access_token to access services
-                $.ajax({
-                    type: 'POST',
-                    url: options.url+'token',
-                    dataType: 'json',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        grant_type: 'authorization_code',
-                        code: authorization_token,
-                        redirect_uri: options.callback,
-                        client_id: options.client,
-                        client_secret: options.secret,
-                    }),
-                    success: function(result){
-                        // Store the access token for later usage
-                        this.access_token = result.access_token;
-                        // Clear the browser URL for cleaner reloads
-                        history.pushState(null, '', options.callback);
+                    // Logged in, request access_token to access services
+                    var parameters = options.access.parameters;
+                    parameters.code = authorization_token;
 
-                        // Check for authorization
-                        $.ajax({
-                            type: 'GET',
-                            url: options.url+options.resource+'?access_token='+this.access_token,
-                            success: callback(this.access_token),
-                        });
-                    },
-                    error: callback(false),
-                });
-            }
-        },
+                    var request = new XMLHttpRequest();
+                    request.open('POST', options.access.url, true);
+                    request.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+
+                    request.onload = function(){
+                        if (this.status >= 200 && this.status < 400) {
+                            // Store the access token for later usage
+                            this.access_token = JSON.parse(this.response).access_token;
+                            // Clear the browser URL for cleaner reloads
+                            history.pushState(null, '', options.access.clean_url);
+
+                            // Return success
+                            resolve(this.access_token)
+                        }
+                        else {
+                            reject(this.response);
+                        }
+                    };
+
+                    request.onerror = function(){
+                        reject('connection_error');
+                    };
+
+                    request.send(parameters);
+                }
+            });
+        }
     };
 });

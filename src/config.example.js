@@ -1,5 +1,7 @@
 var config = {
+    url: 'https://todoist.com/oauth/authorize',
     client: '',
     secret: '',
-    callback: ''
+    scopes: '',
+    callback: '',
 };
