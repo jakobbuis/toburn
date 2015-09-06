@@ -7,4 +7,4 @@ Fullscreen burndown chart for Todoist progress for today
 1. Open `index.html` in a browser.
 
 # License
-Copyright 2015 Jakob Buis. ALl rights reserved.
+Copyright 2015 Jakob Buis. All rights reserved.
