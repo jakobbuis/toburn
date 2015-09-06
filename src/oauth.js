@@ -36,6 +36,21 @@ var OAuth = (function(options){
      */
     var authorization_token = null;
 
+    /**
+     * Encode data as application/x-www-form-urlencoded
+     * @param  {Object} data data to be encoded
+     * @return {string}      query string
+     */
+    var encodeDataAsForm = function(data) {
+        var query_string = [];
+        for(var p in data) {
+            if (data.hasOwnProperty(p)) {
+                query_string.push(encodeURIComponent(p) + "=" + encodeURIComponent(data[p]));
+            }
+        }
+        return query_string.join('&');
+    };
+
     /*
      * Public API
      */
@@ -60,14 +75,7 @@ var OAuth = (function(options){
                     else {
                         // Not authenticated, must login
                         var url = options.authorisation.url;
-                        var parameters = options.authorisation.parameters;
-                        var query_string = [];
-                        for(var p in parameters) {
-                            if (parameters.hasOwnProperty(p)) {
-                                query_string.push(encodeURIComponent(p) + "=" + encodeURIComponent(parameters[p]));
-                            }
-                        }
-                        window.location = url + '?' + query_string.join("&");
+                        window.location = url + '?' + encodeDataAsForm(options.authorisation.parameters);
                     }
                 }
                 else {
@@ -77,7 +85,7 @@ var OAuth = (function(options){
 
                     var request = new XMLHttpRequest();
                     request.open('POST', options.access.url, true);
-                    request.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+                    request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 
                     request.onload = function(){
                         if (this.status >= 200 && this.status < 400) {
@@ -95,10 +103,11 @@ var OAuth = (function(options){
                     };
 
                     request.onerror = function(){
+                        console.log(this.response);
                         reject('connection_error');
                     };
 
-                    request.send(parameters);
+                    request.send(encodeDataAsForm(parameters));
                 }
             });
         }

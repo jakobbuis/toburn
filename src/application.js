@@ -11,12 +11,20 @@ var App = {
     init: function() {
         // Start by authenticating to OAuth
         var oauth = new OAuth(config);
-        oauth.authenticate().then(function(access_token){
-            // Start the application
-            this.access_token = access_token;
-            setupGraph();
-            updateGraph();
-        }, this.fatalError);
+        oauth.authenticate().then(this.startApplication, this.fatalError);
+    },
+
+    /**
+     * Start the application behaviour when OAuth has completed
+     * @param  {string} access_token access token for OAuth
+     * @return {void}
+     */
+    startApplication: function(access_token){
+        console.log(access_token);
+        alert('app starting!');
+        this.access_token = access_token;
+        this.setupGraph();
+        this.updateGraph();
     },
 
     /**
